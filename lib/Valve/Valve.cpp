@@ -1,7 +1,8 @@
 #include "Arduino.h"
 #include "Valve.h"
 
-/// | ValvePotentiometer Implementation
+// | ValvePotentiometer Implementation
+// Das ValvePotentiometer erfasst die Position des Stellmotors und verarbeitet diese für das Valve
 ValvePotentiometer::ValvePotentiometer(uint8_t pin) // Konstruktor --> Variablen initialisieren
     : begun(false), pin(pin), openedAnalog(0), closedAnalog(0), currentAnalog(0) {}
 
@@ -33,12 +34,15 @@ void ValvePotentiometer::update() {
 
     this->currentAnalog = analogRead(this->pin);
 }
-///
+//
 
-/// | Valve Implementation
-Valve::Valve(uint8_t openRelay, uint8_t closeRelay, float targetPrecision, float targetHyresis, ValvePotentiometer *potentiometer) // Konstruktor --> Variablen initialisieren
-    : begun(false), openRelay(openRelay), closeRelay(closeRelay), targetPrecision(targetPrecision), targetHyresis(targetHyresis), potentiometer(potentiometer),
-    currentState(0.0), targetState(0.0), isActing(false), calibrated(true), actionDirection(0) {}
+
+
+// | Valve Implementation
+// Das Valve steuert den Stellmotor über .setTargetState()
+Valve::Valve(uint8_t openRelay, uint8_t closeRelay, float targetPrecision, float targetHysteresis, ValvePotentiometer *potentiometer) // Konstruktor --> Variablen initialisieren
+    : begun(false), isActing(false), calibrated(false), actionDirection(0), currentState(0.0), targetState(0.0),
+    openRelay(openRelay), closeRelay(closeRelay), targetPrecision(targetPrecision), targetHysteresis(targetHysteresis), potentiometer(potentiometer) {}
 
 void Valve::begin() { // Pins initialisieren, falls noch nicht geschehen: Potentiometer initialisieren
     if (this->begun) return; // nicht mehrmals beginnen
@@ -83,7 +87,7 @@ void Valve::calibrate() { // Kalibrationsfahrt um den Potentiometer einzustellen
         } else {
             stableCount = 0;
         }
-        // TODO: evtl max zeit begrezung? Rücksprache
+        // TODO: evtl max zeit begrezung? RÜCKSPRACHE
 
         if (stableCount >= stableCountRequired) {
             break; // stabile Werte --> Ende erreicht
@@ -179,12 +183,12 @@ void Valve::update() {
             return;
         }
     } else {
-        if (difference > this->targetHyresis) { // Wenn die Differenz größer als der Hysteresenwert ist, ist der Sollwert größer als der Istwert --> Öffnen
+        if (difference > this->targetHysteresis) { // Wenn die Differenz größer als der Hysteresenwert ist, ist der Sollwert größer als der Istwert --> Öffnen
             this->startOpenAction();
             return;
         }
 
-        if (difference < -this->targetHyresis) { // Wenn die Differenz kleiner als der Hysteresenwert ist, ist der Sollwert kleiner als der Istwert --> Schließen
+        if (difference < -this->targetHysteresis) { // Wenn die Differenz kleiner als der Hysteresenwert ist, ist der Sollwert kleiner als der Istwert --> Schließen
             this->startCloseAction();
             return;
         }

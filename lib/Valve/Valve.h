@@ -26,6 +26,7 @@ class Valve {
     private:
         bool begun;
         bool calibrated;
+        
         bool isActing;
         int actionDirection;
 
@@ -33,7 +34,7 @@ class Valve {
         uint8_t closeRelay;
 
         float targetPrecision;
-        float targetHyresis;
+        float targetHysteresis;
 
         ValvePotentiometer *potentiometer;
 
@@ -41,7 +42,7 @@ class Valve {
         float absTargetDifference();
     
     public:
-        Valve(uint8_t openRelay, uint8_t closeRelay, float targetPrecision, float targetHyresis, ValvePotentiometer *potentiometer);
+        Valve(uint8_t openRelay, uint8_t closeRelay, float targetPrecision, float targetHysteresis, ValvePotentiometer *potentiometer);
 
         float currentState;
         float targetState;
