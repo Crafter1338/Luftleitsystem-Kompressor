@@ -27,6 +27,7 @@ class Valve {
         bool begun;
         bool calibrated;
         bool isActing;
+        int actionDirection;
 
         uint8_t openRelay;
         uint8_t closeRelay;

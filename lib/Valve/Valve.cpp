@@ -14,7 +14,7 @@ void ValvePotentiometer::begin() { // Pins initialisieren
 }
 
 float ValvePotentiometer::getState() {
-    if (this->begun) return 0.0; // Protection
+    if (!this->begun) return 0.0; // Protection
 
     if (openedAnalog == closedAnalog) return 0.0; // Nicht durch 0 teilen
 
@@ -38,7 +38,7 @@ void ValvePotentiometer::update() {
 /// | Valve Implementation
 Valve::Valve(uint8_t openRelay, uint8_t closeRelay, float targetPrecision, float targetHyresis, ValvePotentiometer *potentiometer) // Konstruktor --> Variablen initialisieren
     : begun(false), openRelay(openRelay), closeRelay(closeRelay), targetPrecision(targetPrecision), targetHyresis(targetHyresis), potentiometer(potentiometer),
-    currentState(0.0), targetState(0.0), isActing(false), calibrated(true) {}
+    currentState(0.0), targetState(0.0), isActing(false), calibrated(true), actionDirection(0) {}
 
 void Valve::begin() { // Pins initialisieren, falls noch nicht geschehen: Potentiometer initialisieren
     if (this->begun) return; // nicht mehrmals beginnen
@@ -60,8 +60,7 @@ float Valve::targetDifference() { // Differenz zwischen Soll- und Istwert
 float Valve::absTargetDifference() { // Differenz zwischen Soll- und Istwert (absolut)
     if (!this->begun) return; // Protection
 
-    const uint16_t precision = 10000;
-    return (float) abs(int(this->targetState*precision) - int(this->currentState*precision)) / precision;
+    return fabs(this->targetDifference());
 }
 
 void Valve::calibrate() { // Kalibrationsfahrt um den Potentiometer einzustellen
@@ -136,7 +135,9 @@ void Valve::startOpenAction() { // Klappe öffnen --> vorherige Aktion beenden
 
     digitalWrite(this->closeRelay, LOW);
     digitalWrite(this->openRelay, HIGH);
+
     this->isActing = true;
+    this->actionDirection = 1;
 }
 
 void Valve::startCloseAction() { // Klappe schließen --> vorherige Aktion beenden
@@ -144,7 +145,9 @@ void Valve::startCloseAction() { // Klappe schließen --> vorherige Aktion beend
 
     digitalWrite(this->openRelay, LOW);
     digitalWrite(this->closeRelay, HIGH);
+
     this->isActing = true;
+    this->actionDirection = -1;
 }
 
 void Valve::stopAction() { // Klappe stillstand --> laufende Aktion beenden 
@@ -152,7 +155,9 @@ void Valve::stopAction() { // Klappe stillstand --> laufende Aktion beenden
 
     digitalWrite(this->openRelay, LOW);
     digitalWrite(this->closeRelay, LOW);
+
     this->isActing = false;
+    this->actionDirection = 0;
 }
 
 void Valve::update() {
@@ -164,20 +169,25 @@ void Valve::update() {
     float difference = this->targetDifference();
 
     if (this->isActing){ // Wenn eine Aktion ausgeführt wird (öffnen / schließen)
-        if (difference <= this->targetPrecision) { // Wenn der Istwert im Toleranzbereich (oder drunter) zum Sollwert ist --> Aktion beenden --> Aktion abgeschlossen
+        // Prüfen, ob wir die Toleranz in der richtigen Richtung erreicht haben
+        if (this->actionDirection > 0 && difference <= this->targetPrecision) { 
             this->stopAction();
             return;
         }
-    }
+        if (this->actionDirection < 0 && difference >= -this->targetPrecision) {
+            this->stopAction();
+            return;
+        }
+    } else {
+        if (difference > this->targetHyresis) { // Wenn die Differenz größer als der Hysteresenwert ist, ist der Sollwert größer als der Istwert --> Öffnen
+            this->startOpenAction();
+            return;
+        }
 
-    if (difference > this->targetHyresis) { // Wenn die Differenz größer als der Hysteresenwert ist, ist der Sollwert größer als der Istwert --> Öffnen
-        this->startOpenAction();
-        return;
-    }
-
-    if (difference < this->targetHyresis) { // Wenn die Differenz kleiner als der Hysteresenwert ist, ist der Sollwert kleiner als der Istwert --> Schließen
-        this->startCloseAction();
-        return;
+        if (difference < -this->targetHyresis) { // Wenn die Differenz kleiner als der Hysteresenwert ist, ist der Sollwert kleiner als der Istwert --> Schließen
+            this->startCloseAction();
+            return;
+        }
     }
 }
 ///
